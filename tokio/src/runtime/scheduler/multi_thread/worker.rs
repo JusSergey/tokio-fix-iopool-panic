@@ -274,6 +274,7 @@ where
     }
 
     let mut had_entered = false;
+    let mut execute_reset = false;
 
     let setup_result = CURRENT.with(|maybe_cx| {
         match (
@@ -325,6 +326,8 @@ where
             None => return Ok(()),
         };
 
+        execute_reset = true;
+
         // The parker should be set here
         assert!(core.park.is_some());
 
@@ -348,11 +351,14 @@ where
         panic!("{}", panic_message);
     }
 
-    if had_entered {
+    if had_entered && execute_reset {
+        println!("execute reset");
         // Unset the current task's budget. Blocking sections are not
         // constrained by task budgets.
         let _reset = Reset(coop::stop());
 
+        crate::runtime::context::exit_runtime(f)
+    } else if had_entered {
         crate::runtime::context::exit_runtime(f)
     } else {
         f()
